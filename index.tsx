@@ -2,10 +2,9 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { React } from "@webpack/common";
 
-// Pull settings using a relative back-directory path to bypass alias limits
-import { PluginSettings } from "../../modules/settings";
+// Go up 3 levels: vc-serverQuickAccess -> userplugins -> src -> modules/settings
+import { PluginSettings } from "../../../modules/settings";
 
-// Setup standard modules using global Vencord tracking to keep types happy
 const NavigationUtils = (window as any).Vencord?.Webpack?.findByProps("transitionTo", "selectGuild");
 const GuildStore = (window as any).Vencord?.Webpack?.findByProps("getGuild", "getGuilds");
 
