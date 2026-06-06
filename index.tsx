@@ -1,10 +1,9 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { Webpack, byProps } from "@webpack";
 import React from "react";
 
-// Safe lookups using the standard Webpack search engine
-const NavigationUtils = Webpack.getModule(byProps("transitionTo", "selectGuild"));
+// Use the global Vencord runtime tracking to pull modules safely without compiler imports
+const NavigationUtils = (window as any).Vencord?.Webpack?.findByProps("transitionTo", "selectGuild");
 
 const QUICK_SERVERS = [
     { id: "123456789012345678", name: "Dev Server", iconUrl: "https://i.imgur.com/your-image.png" },
@@ -27,7 +26,7 @@ export default definePlugin({
     ],
 
     start() {
-        window.QuickAccessBar = () => {
+        (window as any).QuickAccessBar = () => {
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "12px" }}>
                     {QUICK_SERVERS.map(server => (
@@ -63,6 +62,6 @@ export default definePlugin({
     },
 
     stop() {
-        if (window.QuickAccessBar) delete window.QuickAccessBar;
+        if ((window as any).QuickAccessBar) delete (window as any).QuickAccessBar;
     }
 });
