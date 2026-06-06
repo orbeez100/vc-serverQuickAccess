@@ -2,26 +2,30 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { React } from "@webpack/common";
 
-// Safe module lookups using the runtime window object to avoid compiler dependency errors
 const NavigationUtils = (window as any).Vencord?.Webpack?.findByProps("transitionTo", "selectGuild");
 const GuildStore = (window as any).Vencord?.Webpack?.findByProps("getGuild", "getGuilds");
 
-// Access Vencord's internal Settings manager directly through the runtime wrapper safely
-const getVencordSettings = () => {
-    return (window as any).VencordPlugins?.ServerQuickAccess?.settings || { pinnedServers: [] };
+// Access Vencord's built-in managed settings state
+const getPinnedList = (plugin: any) => {
+    const raw = plugin.settings?.pinnedServers;
+    if (!raw) return [];
+    if (typeof raw === "string") {
+        return raw.split(",").map((id: string) => id.trim()).filter(Boolean);
+    }
+    return Array.isArray(raw) ? raw : [];
 };
 
 export default definePlugin({
     name: "ServerQuickAccess",
-    description: "Right-click any server icon to pin it directly to the top right header bar.",
+    description: "Adds instant server shortcuts to the top right header bar. Manage your pinned IDs inside the plugin settings panel!",
     authors: [{ name: "Orbeez", id: 0n }],
-    
-    // Correctly defined native settings object without type casting typos
+
+    // Use standard, safe native settings inputs that won't break client initialization
     settings: {
         pinnedServers: {
-            description: "Array of pinned server IDs",
-            type: "array",
-            default: []
+            description: "Enter Server IDs separated by commas (e.g. 123456789, 987654321)",
+            type: "string",
+            default: ""
         }
     } as any,
 
@@ -32,43 +36,23 @@ export default definePlugin({
                 match: /(return\s+.*?\.jsxs\)\()(.*?,\{.*?toolbar:)/,
                 replace: `$1$2 children: [/* @__PURE__ */ React.createElement(QuickAccessBar, null)], `
             }
-        },
-        {
-            find: "GuildContextMenu",
-            replacement: {
-                match: /(return\s+.*?\.jsx\()(.*?.ContextMenu.*?children:\[)/,
-                replace: `$1$2React.createElement(PinContextMenuItem, { guildId: props.guild?.id || props.guildId }),`
-            }
         }
     ],
 
     start() {
-        const VencordSettings = getVencordSettings();
-        if (!VencordSettings.pinnedServers) {
-            VencordSettings.pinnedServers = [];
-        }
+        const self = (window as any).VencordPlugins?.ServerQuickAccess;
 
         (window as any).QuickAccessBar = () => {
-            const currentSettings = getVencordSettings();
-            const [pinned, setPinned] = React.useState(currentSettings.pinnedServers || []);
-
-            React.useEffect(() => {
-                const listener = () => {
-                    const updatedSettings = getVencordSettings();
-                    setPinned([...(updatedSettings.pinnedServers || [])]);
-                };
-                window.addEventListener("vc-server-pin-update", listener);
-                return () => window.removeEventListener("vc-server-pin-update", listener);
-            }, []);
-
-            if (!pinned || pinned.length === 0) return null;
+            // Read directly from state dynamically during layout rendering
+            const pinnedIds = getPinnedList(self);
+            if (pinnedIds.length === 0) return null;
 
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "12px" }}>
-                    {pinned.map((id: string) => {
+                    {pinnedIds.map((id: string) => {
                         const guild = GuildStore?.getGuild(id);
                         if (!guild) return null;
-                        
+
                         const iconUrl = guild.getIconURL?.() || `https://ui-avatars.com/api/?name=${encodeURIComponent(guild.name)}&background=36393f&color=fff`;
 
                         return (
@@ -102,39 +86,9 @@ export default definePlugin({
                 </div>
             );
         };
-
-        (window as any).PinContextMenuItem = ({ guildId }: { guildId: string }) => {
-            if (!guildId) return null;
-            const currentSettings = getVencordSettings();
-            if (!currentSettings.pinnedServers) currentSettings.pinnedServers = [];
-            
-            const isPinned = currentSettings.pinnedServers.includes(guildId);
-
-            const handleTogglePin = () => {
-                const activeSettings = getVencordSettings();
-                if (!activeSettings.pinnedServers) activeSettings.pinnedServers = [];
-
-                if (isPinned) {
-                    activeSettings.pinnedServers = activeSettings.pinnedServers.filter((id: string) => id !== guildId);
-                } else {
-                    activeSettings.pinnedServers = [...activeSettings.pinnedServers, guildId];
-                }
-                window.dispatchEvent(new Event("vc-server-pin-update"));
-            };
-
-            const MenuItem = (window as any).Vencord?.Webpack?.findByProps("MenuRadioItem", "MenuItem")?.MenuItem;
-            if (!MenuItem) return null;
-
-            return React.createElement(MenuItem, {
-                id: "quick-access-pin",
-                label: isPinned ? "Unpin from Top Bar" : "Pin to Top Bar",
-                action: handleTogglePin
-            });
-        };
     },
 
     stop() {
         if ((window as any).QuickAccessBar) delete (window as any).QuickAccessBar;
-        if ((window as any).PinContextMenuItem) delete (window as any).PinContextMenuItem;
     }
 });
