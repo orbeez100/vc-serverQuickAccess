@@ -2,20 +2,26 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { React } from "@webpack/common";
 
-// Go up 3 levels: vc-serverQuickAccess -> userplugins -> src -> modules/settings
-import { PluginSettings } from "../../../modules/settings";
-
+// Safe module lookups using the runtime window object to avoid compiler dependency errors
 const NavigationUtils = (window as any).Vencord?.Webpack?.findByProps("transitionTo", "selectGuild");
 const GuildStore = (window as any).Vencord?.Webpack?.findByProps("getGuild", "getGuilds");
 
-const settings = PluginSettings.get("ServerQuickAccess", {
-    pinnedServers: [] as string[]
-});
+// Access Vencord's internal Settings manager directly through the runtime wrapper
+const VencordSettings = (window as any).VencordPlugins?.ServerQuickAccess?.settings || { pinnedServers: [] };
 
 export default definePlugin({
     name: "ServerQuickAccess",
     description: "Right-click any server icon to pin it directly to the top right header bar.",
     authors: [{ name: "Orbeez", id: 0n }],
+    
+    // Define the setting fields natively within the plugin declaration configuration
+    settings: {
+        pinnedServers: {
+            description: "Array of pinned server IDs",
+            type: "array",
+            default: []
+        }
+     as any},
 
     patches: [
         {
@@ -35,11 +41,16 @@ export default definePlugin({
     ],
 
     start() {
+        // Initialize an empty array fallback if the settings haven't been created yet
+        if (!VencordSettings.pinnedServers) {
+            VencordSettings.pinnedServers = [];
+        }
+
         (window as any).QuickAccessBar = () => {
-            const [pinned, setPinned] = React.useState(settings.pinnedServers);
+            const [pinned, setPinned] = React.useState(VencordSettings.pinnedServers);
 
             React.useEffect(() => {
-                const listener = () => setPinned([...settings.pinnedServers]);
+                const listener = () => setPinned([...VencordSettings.pinnedServers]);
                 window.addEventListener("vc-server-pin-update", listener);
                 return () => window.removeEventListener("vc-server-pin-update", listener);
             }, []);
@@ -48,7 +59,7 @@ export default definePlugin({
 
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "12px" }}>
-                    {pinned.map(id => {
+                    {pinned.map((id: string) => {
                         const guild = GuildStore?.getGuild(id);
                         if (!guild) return null;
                         
@@ -88,13 +99,13 @@ export default definePlugin({
 
         (window as any).PinContextMenuItem = ({ guildId }: { guildId: string }) => {
             if (!guildId) return null;
-            const isPinned = settings.pinnedServers.includes(guildId);
+            const isPinned = VencordSettings.pinnedServers.includes(guildId);
 
             const handleTogglePin = () => {
                 if (isPinned) {
-                    settings.pinnedServers = settings.pinnedServers.filter((id: string) => id !== guildId);
+                    VencordSettings.pinnedServers = VencordSettings.pinnedServers.filter((id: string) => id !== guildId);
                 } else {
-                    settings.pinnedServers = [...settings.pinnedServers, guildId];
+                    VencordSettings.pinnedServers = [...VencordSettings.pinnedServers, guildId];
                 }
                 window.dispatchEvent(new Event("vc-server-pin-update"));
             };
