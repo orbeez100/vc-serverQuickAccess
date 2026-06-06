@@ -1,15 +1,16 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { PluginSettings } from "@modules/settings";
-import React from "react";
+import { React } from "@webpack/common";
 
-// Get Discord modules via global Vencord tracking to stay safe from compiler errors
+// Pull settings using a relative back-directory path to bypass alias limits
+import { PluginSettings } from "../../modules/settings";
+
+// Setup standard modules using global Vencord tracking to keep types happy
 const NavigationUtils = (window as any).Vencord?.Webpack?.findByProps("transitionTo", "selectGuild");
 const GuildStore = (window as any).Vencord?.Webpack?.findByProps("getGuild", "getGuilds");
 
-// Setup default settings storage for pinned servers
 const settings = PluginSettings.get("ServerQuickAccess", {
-    pinnedServers: [] as string[] // Stores array of Guild IDs
+    pinnedServers: [] as string[]
 });
 
 export default definePlugin({
@@ -19,7 +20,6 @@ export default definePlugin({
 
     patches: [
         {
-            // Patch 1: Inject our custom shortcut bar into the top header toolbar
             find: "HeaderBarContainer",
             replacement: {
                 match: /(return\s+.*?\.jsxs\)\()(.*?,\{.*?toolbar:)/,
@@ -27,7 +27,6 @@ export default definePlugin({
             }
         },
         {
-            // Patch 2: Intercept Discord's Server Right-Click Context Menu
             find: "GuildContextMenu",
             replacement: {
                 match: /(return\s+.*?\.jsx\()(.*?.ContextMenu.*?children:\[)/,
@@ -37,11 +36,9 @@ export default definePlugin({
     ],
 
     start() {
-        // Component for the Top Right Bar
         (window as any).QuickAccessBar = () => {
             const [pinned, setPinned] = React.useState(settings.pinnedServers);
 
-            // Keep the top bar in sync when changes happen
             React.useEffect(() => {
                 const listener = () => setPinned([...settings.pinnedServers]);
                 window.addEventListener("vc-server-pin-update", listener);
@@ -56,7 +53,6 @@ export default definePlugin({
                         const guild = GuildStore?.getGuild(id);
                         if (!guild) return null;
                         
-                        // Get the real server icon URL or fallback to initials if no icon
                         const iconUrl = guild.getIconURL?.() || `https://ui-avatars.com/api/?name=${encodeURIComponent(guild.name)}&background=36393f&color=fff`;
 
                         return (
@@ -73,11 +69,11 @@ export default definePlugin({
                                     border: "1px solid var(--border-transparent)",
                                     transition: "transform 0.15s ease-in-out, border-radius 0.15s ease-in-out"
                                 }}
-                                onMouseEnter={(e) => {
+                                onMouseEnter={(e: any) => {
                                     e.currentTarget.style.transform = "scale(1.15)";
                                     e.currentTarget.style.borderRadius = "35%";
                                 }}
-                                onMouseLeave={(e) => {
+                                onMouseLeave={(e: any) => {
                                     e.currentTarget.style.transform = "scale(1.0)";
                                     e.currentTarget.style.borderRadius = "50%";
                                 }}
@@ -91,7 +87,6 @@ export default definePlugin({
             );
         };
 
-        // Component for the "Pin Server" Option inside Right-Click Menus
         (window as any).PinContextMenuItem = ({ guildId }: { guildId: string }) => {
             if (!guildId) return null;
             const isPinned = settings.pinnedServers.includes(guildId);
