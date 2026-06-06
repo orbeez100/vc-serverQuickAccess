@@ -1,11 +1,11 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { WebpackModules } from "@webpack";
+import { findByProps, findByUniqueProperties } from "@webpack";
 import React from "react";
 
-// Track down Discord's internal flux navigation and structural header components
-const NavigationUtils = WebpackModules.findByProps("transitionTo", "selectGuild");
-const HeaderBar = WebpackModules.findByUniqueProperties(["Icon", "Title"]);
+// 1. Grab Discord's internal components using the updated, correct Vencord functions
+const NavigationUtils = findByProps("transitionTo", "selectGuild");
+const HeaderBar = findByUniqueProperties(["Icon", "Title"]);
 
 // Add your Server IDs and raw image links here
 const QUICK_SERVERS = [
@@ -38,7 +38,7 @@ export default definePlugin({
                         <div
                             key={server.id}
                             title={server.name}
-                            onClick={() => NavigationUtils.selectGuild(server.id)}
+                            onClick={() => NavigationUtils?.selectGuild(server.id)}
                             style={{
                                 width: "26px",
                                 height: "26px",
