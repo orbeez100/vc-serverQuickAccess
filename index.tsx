@@ -1,13 +1,11 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { findByProps, findByUniqueProperties } from "@webpack";
+import { Webpack, byProps } from "@webpack";
 import React from "react";
 
-// 1. Grab Discord's internal components using the updated, correct Vencord functions
-const NavigationUtils = findByProps("transitionTo", "selectGuild");
-const HeaderBar = findByUniqueProperties(["Icon", "Title"]);
+// Safe lookups using the standard Webpack search engine
+const NavigationUtils = Webpack.getModule(byProps("transitionTo", "selectGuild"));
 
-// Add your Server IDs and raw image links here
 const QUICK_SERVERS = [
     { id: "123456789012345678", name: "Dev Server", iconUrl: "https://i.imgur.com/your-image.png" },
     { id: "876543210987654321", name: "Main Project", iconUrl: "https://i.imgur.com/your-image2.png" }
@@ -20,7 +18,6 @@ export default definePlugin({
 
     patches: [
         {
-            // Intercepts the native HeaderBar rendering engine
             find: "HeaderBarContainer",
             replacement: {
                 match: /(return\s+.*?\.jsxs\)\()(.*?,\{.*?toolbar:)/,
@@ -30,7 +27,6 @@ export default definePlugin({
     ],
 
     start() {
-        // Global visual layout component injected directly into the header stream
         window.QuickAccessBar = () => {
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "12px" }}>
@@ -60,7 +56,6 @@ export default definePlugin({
                             <img src={server.iconUrl} alt={server.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
                     ))}
-                    {/* Visual divider matching native Discord separators */}
                     <div style={{ width: "1px", height: "16px", backgroundColor: "var(--background-modifier-accent)", margin: "0 4px" }} />
                 </div>
             );
